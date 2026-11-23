@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Housing Market Tracker</title>
+  <meta name="description" content="Monthly home values, rents and listings for U.S. metro areas, refreshed automatically from Zillow Research data.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%232a78d6'/%3E%3Cpath d='M6 11.5 12 6.5l6 5V18h-3.5v-4h-5v4H6z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#/">
+        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="var(--s1)"/><path d="M6 11.5 12 6.5l6 5V18h-3.5v-4h-5v4H6z" fill="#fff"/></svg>
+        <span id="site-title">Housing Market Tracker</span>
+      </a>
+      <div class="combo" id="search" role="search"></div>
+    </div>
+  </header>
+  <main id="app" class="wrap" tabindex="-1">
+    <p class="loading">Loading housing data&hellip;</p>
+  </main>
+  <footer class="site-footer"><div class="wrap" id="footer"></div></footer>
+</body>
+</html>

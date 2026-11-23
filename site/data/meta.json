@@ -1,0 +1,72 @@
+{
+  "site_title": "Housing Market Tracker",
+  "source_page": "https://www.zillow.com/research/data/",
+  "latest_month": "2026-10",
+  "metro_count": 927,
+  "featured": [
+    "394913",
+    "753899",
+    "394463",
+    "394514",
+    "394692",
+    "395209",
+    "394974",
+    "394856",
+    "394347",
+    "394404",
+    "394976",
+    "395057"
+  ],
+  "photos_enabled": true,
+  "datasets": [
+    {
+      "key": "zhvi",
+      "label": "Typical home value",
+      "unit": "usd",
+      "note": "Zillow Home Value Index (ZHVI). Single-family homes and condos in the middle third of values, smoothed and seasonally adjusted.",
+      "latest_month": "2026-10",
+      "source_url": "https://files.zillowstatic.com/research/public_csvs/zhvi/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+    },
+    {
+      "key": "zori",
+      "label": "Typical rent",
+      "unit": "usd_month",
+      "note": "Zillow Observed Rent Index (ZORI). Asking rents for all homes and apartments, smoothed.",
+      "latest_month": "2026-10",
+      "source_url": "https://files.zillowstatic.com/research/public_csvs/zori/Metro_zori_uc_sfrcondomfr_sm_month.csv"
+    },
+    {
+      "key": "list_price",
+      "label": "Median list price",
+      "unit": "usd",
+      "note": "Median asking price of single-family homes and condos listed for sale, smoothed.",
+      "latest_month": "2026-10",
+      "source_url": "https://files.zillowstatic.com/research/public_csvs/mlp/Metro_mlp_uc_sfrcondo_sm_month.csv"
+    },
+    {
+      "key": "sale_price",
+      "label": "Median sale price",
+      "unit": "usd",
+      "note": "Median price single-family homes and condos sold for, smoothed.",
+      "latest_month": "2026-09",
+      "source_url": "https://files.zillowstatic.com/research/public_csvs/median_sale_price/Metro_median_sale_price_uc_sfrcondo_sm_month.csv"
+    },
+    {
+      "key": "inventory",
+      "label": "Homes for sale",
+      "unit": "count",
+      "note": "Number of single-family homes and condos listed for sale during the month, smoothed.",
+      "latest_month": "2026-10",
+      "source_url": "https://files.zillowstatic.com/research/public_csvs/invt_fs/Metro_invt_fs_uc_sfrcondo_sm_month.csv"
+    },
+    {
+      "key": "days_pending",
+      "label": "Median days to pending",
+      "unit": "days",
+      "note": "Median days from listing to an accepted offer, smoothed.",
+      "latest_month": "2026-10",
+      "source_url": "https://files.zillowstatic.com/research/public_csvs/med_doz_pending/Metro_med_doz_pending_uc_sfrcondo_sm_month.csv"
+    }
+  ],
+  "updated_at": "2026-11-23T02:57:28+00:00"
+}
