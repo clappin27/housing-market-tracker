@@ -82,6 +82,9 @@ function icon(kind, size = 18) {
   return s;
 }
 
+// Replace the page content, skipping sections that have nothing to show (null).
+const mount = (...kids) => app.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
+
 async function getJSON(path) {
   const r = await fetch(path);
   if (!r.ok) throw new Error(`${path} returned ${r.status}`);
@@ -467,7 +470,7 @@ function renderHome() {
   document.title = S.meta.site_title;
   const us = S.byId.get(US_ID);
   const latest = monthLabel(mIdx(S.meta.latest_month));
-  app.replaceChildren(
+  mount(
     h("section", {},
       h("h1", { text: "U.S. housing market" }),
       h("p", {
@@ -649,7 +652,7 @@ function renderMetro(metro) {
     h("dt", { text: "Gross rent yield" }),
     h("dd", { text: "Typical yearly rent divided by typical home value. A quick screen only: it ignores vacancy, taxes, insurance and upkeep, and Zillow's rent and value indexes cover slightly different sets of homes." }));
 
-  app.replaceChildren(
+  mount(
     h("a", { class: "back", href: "#/" }, "← All metro areas"),
     h("section", { class: p ? "metro-head" : "metro-head no-photo" },
       h("div", {},
@@ -686,7 +689,7 @@ function renderFooter() {
   const f = document.getElementById("footer");
   const updated = S.meta.updated_at ? new Date(S.meta.updated_at).toLocaleDateString("en-US", { dateStyle: "long" }) : null;
   const ext = { target: "_blank", rel: "noopener" };
-  f.replaceChildren(
+  f.replaceChildren(...[
     h("p", {},
       "Data: ",
       h("a", { href: safeUrl(S.meta.source_page) || "https://www.zillow.com/research/data/", ...ext, text: "Zillow Research" }),
@@ -695,7 +698,8 @@ function renderFooter() {
       ? h("p", {}, "Photos: Wikipedia lead images from Wikimedia Commons. Each photo's author and license is credited beside it.")
       : null,
     h("p", {}, `Refreshed automatically with GitHub Actions${updated ? `. Last data change: ${updated}` : ""}. `,
-      h("a", { href: "data/latest.csv", download: "housing-market-latest.csv", text: "Download the latest figures (CSV)" }), "."));
+      h("a", { href: "data/latest.csv", download: "housing-market-latest.csv", text: "Download the latest figures (CSV)" }), "."),
+  ].filter(Boolean));
 }
 
 async function init() {
