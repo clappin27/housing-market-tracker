@@ -5,6 +5,8 @@
 2. Reshapes them into small JSON files the website reads (site/data/).
 3. Looks up a free-licensed photo of each metro's main city on
    Wikipedia / Wikimedia Commons, with author and license for the credit line.
+4. Writes this month's market alerts (big moves, multi-year highs and lows,
+   turning points) for the areas listed in config.json.
 
 Only files whose contents changed are rewritten, so a run with nothing new
 leaves the repository untouched. Uses only the Python standard library.
@@ -13,6 +15,7 @@ Usage:
     python3 scripts/update_data.py                 # normal run
     python3 scripts/update_data.py --no-photos     # skip the photo lookup
     python3 scripts/update_data.py --refresh-photos  # look every photo up again
+    python3 scripts/update_data.py --alerts-markdown alerts.md  # also write alerts as Markdown
 """
 
 import argparse
@@ -455,13 +458,237 @@ def latest_csv(metro_list, last_month_label):
     return buf.getvalue()
 
 
+# --------------------------------------------------------------------------- alerts
+
+# key: (name used in alert text, yearly change in % that counts as a big move,
+#       whether a run of monthly declines is worth flagging). Only home values are
+#       seasonally adjusted; rents dip every fall, so a run of rent declines isn't news.
+ALERT_METRICS = {
+    "zhvi": ("Typical home value", 5, True),
+    "zori": ("Typical rent", 5, False),
+    "list_price": ("Median list price", 8, False),
+    "sale_price": ("Median sale price", 8, False),
+    "inventory": ("Homes for sale", 20, False),
+    "days_pending": ("Median days to pending", 25, False),
+}
+ALERTS_PER_AREA = 3
+EXTREME_MIN_MONTHS = 36   # "highest since ..." only when it beats at least 3 years
+RECORD_MIN_MONTHS = 60    # "record high" only with at least 5 years of data
+STREAK_MIN = 3            # months in a row of declines
+TURN_MIN_GAP = 6          # yearly change must have held its old direction this long
+MOVER_POOL = 100          # biggest movers are picked from the largest N metros
+MOVER_MIN_CHANGE = 1.0    # ...and only if they moved at least this much (%)
+MIN_SCORE = 0.5           # drops continuing trends, like a new price record every month
+MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+FULL_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
+               "September", "October", "November", "December"]
+
+
+def month_label(idx):
+    return "{} {}".format(MONTH_NAMES[idx % 12], idx // 12)
+
+
+def fmt_value(unit, v):
+    if unit == "usd":
+        if v < 100000:
+            return "${:,.0f}".format(v)
+        r = round(v, -(len(str(int(v))) - 3))  # 3 significant digits
+        if r >= 1000000:
+            return "${}M".format(("%.2f" % (r / 1e6)).rstrip("0").rstrip("."))
+        return "${:,.0f}K".format(r / 1000)
+    if unit == "usd_month":
+        return "${:,.0f}/mo".format(v)
+    if unit == "days":
+        return "{:,.0f} days".format(v)
+    return "{:,.0f}".format(v)
+
+
+def fmt_pct(p, sign=True):
+    mark = ("+" if p > 0 else "−" if p < 0 else "") if sign else ""
+    return "{}{:.1f}%".format(mark, abs(p))
+
+
+def yearly_change(vals, m):
+    a, b = vals.get(m), vals.get(m - 12)
+    return (a / b - 1) * 100 if a is not None and b else None
+
+
+def last_match(vals, at, kind):
+    """Latest month before `at` whose value was at least as high (or low). None if none."""
+    v = vals[at]
+    hits = [m for m in vals if m < at and (vals[m] >= v if kind == "high" else vals[m] <= v)]
+    return max(hits) if hits else None
+
+
+def metric_alerts(key, vals, last, unit):
+    """Every alert one metric triggers for one area; the caller keeps the strongest."""
+    noun, big, watch_streaks = ALERT_METRICS[key]
+    v = vals.get(last)
+    if v is None:
+        return []
+    shown = fmt_value(unit, v)
+    first = min(vals)
+    found = []
+
+    # 1. Highest or lowest in years, or on record.
+    for kind in ("high", "low"):
+        word = "highest" if kind == "high" else "lowest"
+        hit = last_match(vals, last, kind)
+        if hit is not None:
+            gap = last - hit
+            if gap < EXTREME_MIN_MONTHS:
+                continue
+            text = "{}: {}, the {} since {}".format(noun, shown, word, month_label(hit))
+            score = min(gap / 24, 2.5)
+        else:
+            if last - first < RECORD_MIN_MONTHS:
+                continue
+            text = "{}: {}, a record {} (data since {})".format(noun, shown, kind, first // 12)
+            score = 2.5
+        # If last month was already a multi-year extreme, this is a continuing trend, not news.
+        if (last - 1) in vals and last - 1 > first:
+            prev_hit = last_match(vals, last - 1, kind)
+            if prev_hit is None or (last - 1) - prev_hit >= EXTREME_MIN_MONTHS:
+                score *= 0.3
+        if kind == "high" and key in ("zhvi", "zori"):
+            score *= 0.6  # rising prices are the norm; highs matter less than lows
+        found.append({"kind": "record" if hit is None else "extreme", "dir": "up" if kind == "high" else "down",
+                      "text": text, "score": score})
+
+    # 2. Yearly change flipped direction after holding for a while. Changes under
+    #    0.1% count as flat and are skipped, so a slow crossing still registers.
+    now = yearly_change(vals, last)
+
+    def direction(m):
+        c = yearly_change(vals, m)
+        return 0 if c is None or abs(c) < 0.1 else (1 if c > 0 else -1)
+
+    d_now = direction(last)
+    if d_now:
+        m = last - 1
+        while m in vals and direction(m) == 0:
+            m -= 1
+        if m in vals and direction(m) == -d_now:
+            while m in vals and direction(m) != d_now:
+                m -= 1
+            same = m if m in vals else None  # last month that pointed the same way as now
+            if same is None or last - same >= TURN_MIN_GAP:
+                since = "for the first time since {}".format(month_label(same)) if same else "for the first time on record"
+                found.append({"kind": "turn", "dir": "up" if d_now > 0 else "down",
+                              "text": "{} is now {} from a year ago ({}) {}".format(
+                                  noun, "up" if d_now > 0 else "down", fmt_pct(now), since),
+                              "score": 3.0 if key in ("zhvi", "zori") else 2.0})
+
+    # 3. Several monthly declines in a row.
+    if watch_streaks:
+        n = 0
+        while vals.get(last - n) is not None and vals.get(last - n - 1) is not None and vals[last - n] < vals[last - n - 1]:
+            n += 1
+        if n >= STREAK_MIN:
+            start = vals[last - n]
+            found.append({"kind": "streak", "dir": "down",
+                          "text": "{} has fallen {} months in a row ({} since {}), now {}".format(
+                              noun, n, fmt_pct((v / start - 1) * 100), month_label(last - n), shown),
+                          "score": min(1.5 + n * 0.25, 3.0)})
+
+    # 4. A big move over the past year.
+    if now is not None and abs(now) >= big:
+        found.append({"kind": "big", "dir": "up" if now > 0 else "down",
+                      "text": "{} {} {} from a year ago, to {}".format(
+                          noun, "up" if now > 0 else "down", fmt_pct(now, sign=False), shown),
+                      "score": min(abs(now) / big, 3.0)})
+    return found
+
+
+def build_alerts(loaded, watch, metro_list, units):
+    """watch: list of (id, name). Returns alerts sorted strongest first."""
+    alerts = []
+    main_last = loaded["zhvi"]["last"]
+    for rid, name in watch:
+        mine = []
+        for key in ALERT_METRICS:
+            row = loaded[key]["rows"].get(rid)
+            if not row:
+                continue
+            last = loaded[key]["last"]
+            for a in metric_alerts(key, row["values"], last, units[key]):
+                if last != main_last:  # e.g. sale prices run a month behind
+                    a["text"] = a["text"].replace(ALERT_METRICS[key][0],
+                                                  "{} ({})".format(ALERT_METRICS[key][0], month_label(last)), 1)
+                a.update({"id": rid, "name": name, "metric": key})
+                mine.append(a)
+        best = {}
+        for a in sorted(mine, key=lambda a: -a["score"]):
+            if a["score"] >= MIN_SCORE:
+                best.setdefault(a["metric"], a)  # one alert per metric
+        alerts.extend(sorted(best.values(), key=lambda a: -a["score"])[:ALERTS_PER_AREA])
+
+    # Biggest yearly gain and drop in home values and rents among the largest metros.
+    pool = [m for m in metro_list if m["type"] == "metro"][:MOVER_POOL]
+    for key in ("zhvi", "zori"):
+        noun = ALERT_METRICS[key][0].replace("Typical ", "")
+        ranked = sorted((m for m in pool if (m["latest"].get(key) or [None, None])[1] is not None),
+                        key=lambda m: m["latest"][key][1])
+        if len(ranked) < 2:
+            continue
+        for m, word in ((ranked[-1], "gain"), (ranked[0], "drop")):
+            value, change = m["latest"][key]
+            if (word == "gain") != (change > 0) or abs(change) < MOVER_MIN_CHANGE:
+                continue  # e.g. nothing really fell: skip "biggest drop"
+            if any(a["id"] == m["id"] and a["metric"] == key for a in alerts):
+                continue  # already covered by that area's own alert
+            alerts.append({
+                "id": m["id"], "name": m["name"], "metric": key, "kind": "mover",
+                "dir": "up" if change > 0 else "down",
+                "text": "Biggest yearly {} in {}s among the {} largest metros: {}, to {}".format(
+                    word, noun, MOVER_POOL, fmt_pct(change), fmt_value(units[key], value)),
+                "score": 2.2,
+            })
+
+    ranks = {m["id"]: m["rank"] for m in metro_list}
+    alerts.sort(key=lambda a: (-round(a["score"], 3), ranks.get(a["id"], 99999)))
+    for a in alerts:
+        del a["score"]
+    return alerts
+
+
+def alerts_markdown(alerts, month_idx, site_url, owner):
+    lines = ["New Zillow data for **{} {}** is on your site.".format(FULL_MONTHS[month_idx % 12], month_idx // 12), ""]
+    if alerts:
+        for a in alerts:
+            link = "{}#/metro/{}".format(site_url, a["id"]) if site_url else None
+            area = "[{}]({})".format(a["name"], link) if link else a["name"]
+            lines.append("- {} **{}**: {}".format("▲" if a["dir"] == "up" else "▼", area, a["text"]))
+    else:
+        lines.append("Nothing unusual this month for the areas you follow.")
+    if site_url:
+        lines += ["", "Full site: {}".format(site_url)]
+    lines += ["", "_Change which areas you get alerts for under `alerts` in config.json. "
+                  "Close this issue whenever you like._"]
+    if owner:
+        lines += ["", "cc @" + owner]
+    return "\n".join(lines) + "\n"
+
+
+def set_action_output(**pairs):
+    path = os.environ.get("GITHUB_OUTPUT")
+    if not path:
+        return
+    with open(path, "a", encoding="utf-8") as fh:
+        for k, v in pairs.items():
+            fh.write("{}={}\n".format(k, v))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--no-photos", action="store_true", help="skip the Wikipedia photo lookup")
     ap.add_argument("--refresh-photos", action="store_true", help="look up every photo again")
+    ap.add_argument("--alerts-markdown", metavar="PATH",
+                    help="also write this month's alerts as Markdown (used for the GitHub issue)")
     args = ap.parse_args()
 
     config = read_json(CONFIG_PATH) or {}
+    previous_month = (read_json(os.path.join(DATA_DIR, "meta.json")) or {}).get("latest_month")
     loaded = {ds["key"]: load_dataset(ds) for ds in DATASETS}
 
     # Every region in any dataset; name, state and size rank come from the first file that has it.
@@ -522,21 +749,55 @@ def main():
         cached = photo_cache.get(m["id"]) if photos_enabled else None
         m["photo"] = (cached or {}).get("photo")
 
-    # Featured metros: names from config, or the largest metros.
     by_name = {m["name"].lower(): m for m in metro_list}
-    featured = []
-    for name in config.get("featured_metros") or []:
-        hit = by_name.get(str(name).strip().lower())
-        if hit:
-            featured.append(hit["id"])
-        else:
-            log('Warning: featured metro "{}" not found. Use the exact name shown on the site, '
-                'e.g. "Boston, MA".'.format(name))
+    by_id = {m["id"]: m for m in metro_list}
+
+    def resolve(names, setting):
+        ids = []
+        for name in names or []:
+            hit = by_name.get(str(name).strip().lower())
+            if hit:
+                ids.append(hit["id"])
+            else:
+                log('Warning: {}: metro "{}" not found. Use the exact name shown on the site, '
+                    'e.g. "Boston, MA".'.format(setting, name))
+        return ids
+
+    # Featured metros: names from config, or the largest metros.
+    featured = resolve(config.get("featured_metros"), "featured_metros")
     if not featured:
         n = int(config.get("featured_count") or 12)
         featured = [m["id"] for m in metro_list if m["type"] == "metro"][:n]
 
     zhvi_last = index_month(loaded["zhvi"]["last"])
+
+    # Alerts: the U.S. plus the metros named in config (or the featured ones).
+    alert_cfg = config.get("alerts") or {}
+    watch_ids = resolve(alert_cfg.get("metros"), "alerts.metros") or featured
+    watch = [(m["id"], m["name"]) for m in metro_list if m["type"] == "country"]
+    watch += [(i, by_id[i]["name"]) for i in watch_ids if i in by_id]
+    units = {ds["key"]: ds["unit"] for ds in DATASETS}
+    alerts = build_alerts(loaded, watch, metro_list, units)
+    alerts_doc = {"month": zhvi_last, "watching": len(watch), "mover_pool": MOVER_POOL, "alerts": alerts}
+    if write_if_changed(os.path.join(DATA_DIR, "alerts.json"), dumps(alerts_doc, pretty=True)):
+        changed.append("alerts.json")
+    log("{} alert(s) for {} area(s).".format(len(alerts), len(watch)))
+
+    if args.alerts_markdown:
+        repo = os.environ.get("GITHUB_REPOSITORY", "")
+        owner = os.environ.get("GITHUB_REPOSITORY_OWNER", "")
+        site_url = str(alert_cfg.get("site_url") or "").strip()
+        if not site_url and "/" in repo:
+            name = repo.split("/", 1)[1]
+            site_url = "https://{}.github.io/{}".format(owner.lower(), "" if name.lower() == owner.lower() + ".github.io" else name + "/")
+        with open(args.alerts_markdown, "w", encoding="utf-8") as fh:
+            fh.write(alerts_markdown(alerts, loaded["zhvi"]["last"], site_url, owner))
+        idx = loaded["zhvi"]["last"]
+        set_action_output(
+            new_month=str(bool(previous_month) and previous_month != zhvi_last).lower(),
+            notify=str(bool(alert_cfg.get("notify", True))).lower(),
+            alerts_title="Housing alerts: {} {} data".format(FULL_MONTHS[idx % 12], idx // 12),
+        )
     if write_if_changed(os.path.join(DATA_DIR, "metros.json"), dumps(metro_list)):
         changed.append("metros.json")
     if write_if_changed(os.path.join(DATA_DIR, "latest.csv"), latest_csv(metro_list, zhvi_last)):

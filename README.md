@@ -11,6 +11,10 @@ for every U.S. metro area. It updates itself from Zillow Research's public data.
   metro with charts you can compare against up to three other areas.
 - **Photos:** each metro shows the lead photo from its main city's Wikipedia article. Only
   free-licensed images are used, each with its author and license credited.
+- **Market alerts:** the home page lists what stood out in the latest month for the U.S. and
+  the metros you watch. When a new month arrives, the Action also posts the alerts as an
+  issue in this repo, and GitHub notifies you about it, by email if your GitHub notification
+  settings allow.
 
 Nothing to install: the update script uses only built-in Python, and the site is plain
 HTML, CSS and JavaScript.
@@ -36,10 +40,33 @@ Edit [`config.json`](config.json) and push. The site republishes on every push.
 | `featured_metros` | Metro names to feature on the home page, exactly as the site shows them, e.g. `["Boston, MA", "Providence, RI", "Worcester, MA"]`. Leave empty to feature the largest metros. |
 | `featured_count` | How many of the largest metros to feature when `featured_metros` is empty. |
 | `photos.enabled` | Set to `false` to turn photos off. |
+| `alerts.metros` | Metro names to watch for alerts, written like `featured_metros`. Leave empty to watch the featured metros. The U.S. is always included. |
+| `alerts.notify` | `true` posts each new month's alerts as an issue in this repo, so GitHub notifies you. `false` keeps the alerts on the site only. |
+| `alerts.site_url` | Optional. The site link used in alert issues. Only needed with a custom domain. |
 | `contact_url` | Optional. Wikipedia requires a contact link on automated requests; on GitHub the repo URL is used automatically. Only needed for local runs outside a GitHub clone. |
 
 New featured metros take effect on the next data run. Run the workflow by hand to see them
 right away.
+
+## How alerts are chosen
+
+Each month, for the U.S. and each watched metro, the update script checks six figures: home value,
+rent, list price, sale price, homes for sale and days to pending. It flags:
+
+- **Big move:** a yearly change of at least 5% for home values and rents, 8% for list and
+  sale prices, 20% for homes for sale, or 25% for days to pending.
+- **Multi-year high or low:** the highest or lowest value in at least 3 years, or a record
+  with at least 5 years of data. A high or low that continues last month's is ranked lower.
+- **Turning point:** the yearly change flips from up to down, or down to up, after holding
+  for at least 6 months.
+- **Losing streak:** home values falling 3 or more months in a row. Rents aren't checked
+  for streaks, because Zillow's rent index isn't seasonally adjusted and dips every fall.
+- **Top mover:** the biggest yearly gain and drop in home values and rents among the
+  100 largest metros. A mover is shown only if the change is at least 1%.
+
+Each area shows its 3 strongest alerts at most, and one per figure. To test the
+notification, open the **Actions** tab, choose **Update data and publish site**, click
+**Run workflow**, and tick **Also post this month's market alerts as an issue now**.
 
 ## Running it locally
 
@@ -77,6 +104,7 @@ site/data/metros.json                latest figures and photo credits for every 
 site/data/series/<id>.json           monthly history for one metro
 site/data/latest.csv                 spreadsheet-friendly latest figures
 site/data/photos.json                photo lookup cache
+site/data/alerts.json                this month's market alerts
 ```
 
 GitHub turns off scheduled workflows in public repos after 60 days without activity. The

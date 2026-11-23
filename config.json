@@ -4,5 +4,9 @@
   "featured_count": 12,
   "photos": {
     "enabled": true
+  },
+  "alerts": {
+    "metros": [],
+    "notify": true
   }
 }

@@ -1,5 +1,7 @@
 # Checks Zillow Research for new data every day, commits any changes to the repo,
-# and republishes the website on GitHub Pages.
+# and republishes the website on GitHub Pages. When a new month of data arrives, it
+# also posts that month's market alerts as an issue in this repo, which GitHub
+# sends to you as a notification (turn off with "notify": false in config.json).
 #
 # One-time setup: repo Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
 # Run it by hand any time from the Actions tab -> "Update data and publish site" -> Run workflow.
@@ -10,6 +12,11 @@ on:
   schedule:
     - cron: "17 15 * * *" # daily at 15:17 UTC; Zillow usually publishes mid-month
   workflow_dispatch:
+    inputs:
+      send_alerts:
+        description: "Also post this month's market alerts as an issue now"
+        type: boolean
+        default: false
   push:
     branches: [main]
 
@@ -17,6 +24,7 @@ permissions:
   contents: write # commit refreshed data
   pages: write # publish the site
   id-token: write # required by deploy-pages
+  issues: write # post monthly market alerts
 
 concurrency:
   group: update-and-publish
@@ -33,7 +41,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Download latest data and photos
-        run: python3 scripts/update_data.py
+        id: update
+        run: python3 scripts/update_data.py --alerts-markdown "$RUNNER_TEMP/alerts.md"
 
       - name: Commit changes
         id: commit
@@ -49,6 +58,16 @@ jobs:
           git commit -m "Update housing data ($(date -u +%Y-%m-%d))"
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Post market alerts as an issue
+        if: >-
+          ${{ steps.update.outputs.notify == 'true' &&
+          ((steps.update.outputs.new_month == 'true' && steps.commit.outputs.changed == 'true') ||
+          inputs.send_alerts == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.update.outputs.alerts_title }}
+        run: gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file "$RUNNER_TEMP/alerts.md"
 
   publish-site:
     needs: update-data

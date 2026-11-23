@@ -1,0 +1,95 @@
+{
+  "month": "2026-10",
+  "watching": 13,
+  "mover_pool": 100,
+  "alerts": [
+    {
+      "kind": "streak",
+      "dir": "down",
+      "text": "Typical home value has fallen 10 months in a row (−1.7% since Dec 2025), now $301K",
+      "id": "394692",
+      "name": "Houston, TX",
+      "metric": "zhvi"
+    },
+    {
+      "kind": "turn",
+      "dir": "up",
+      "text": "Typical rent is now up from a year ago (+0.3%) for the first time since Aug 2025",
+      "id": "394692",
+      "name": "Houston, TX",
+      "metric": "zori"
+    },
+    {
+      "kind": "streak",
+      "dir": "down",
+      "text": "Typical home value has fallen 28 months in a row (−4.8% since Jun 2024), now $373K",
+      "id": "394347",
+      "name": "Atlanta, GA",
+      "metric": "zhvi"
+    },
+    {
+      "kind": "streak",
+      "dir": "down",
+      "text": "Typical home value has fallen 8 months in a row (−1.6% since Feb 2026), now $439K",
+      "id": "394976",
+      "name": "Phoenix, AZ",
+      "metric": "zhvi"
+    },
+    {
+      "kind": "extreme",
+      "dir": "up",
+      "text": "Homes for sale: 17,665, the highest since Oct 2021",
+      "id": "394974",
+      "name": "Philadelphia, PA",
+      "metric": "inventory"
+    },
+    {
+      "kind": "big",
+      "dir": "up",
+      "text": "Typical rent up 12.2% from a year ago, to $3,438/mo",
+      "id": "395057",
+      "name": "San Francisco, CA",
+      "metric": "zori"
+    },
+    {
+      "id": "394355",
+      "name": "Austin, TX",
+      "metric": "zhvi",
+      "kind": "mover",
+      "dir": "down",
+      "text": "Biggest yearly drop in home values among the 100 largest metros: −4.1%, to $409K"
+    },
+    {
+      "id": "395143",
+      "name": "Syracuse, NY",
+      "metric": "zhvi",
+      "kind": "mover",
+      "dir": "up",
+      "text": "Biggest yearly gain in home values among the 100 largest metros: +6.5%, to $267K"
+    },
+    {
+      "kind": "record",
+      "dir": "up",
+      "text": "Typical rent: $1,884/mo, a record high (data since 2015)",
+      "id": "394974",
+      "name": "Philadelphia, PA",
+      "metric": "zori"
+    },
+    {
+      "kind": "big",
+      "dir": "up",
+      "text": "Typical home value up 5.1% from a year ago, to $356K",
+      "id": "394463",
+      "name": "Chicago, IL",
+      "metric": "zhvi"
+    },
+    {
+      "kind": "extreme",
+      "dir": "up",
+      "text": "Homes for sale: 20,179, the highest since Oct 2019",
+      "id": "395209",
+      "name": "Washington, DC",
+      "metric": "inventory"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ const RANGES = [["5y", "5 yrs", 60], ["10y", "10 yrs", 120], ["all", "All", null
 const app = document.getElementById("app");
 const S = {
   meta: null,
+  alerts: null,
   metros: [],
   byId: new Map(),
   datasets: {},
@@ -227,6 +228,49 @@ function fallbackArt(size) {
 
 // ------------------------------------------------------------------ home view
 
+const ALERT_TAGS = {
+  streak: "Losing streak", turn: "Turning point", big: "Big move",
+  extreme: "Multi-year high/low", record: "Record", mover: "Top mover",
+};
+const ALERTS_SHOWN = 6;
+
+function alertRow(a) {
+  const isUS = a.id === US_ID;
+  return h("li", { class: "alert" },
+    h("span", { class: "alert-dir", text: a.dir === "up" ? "▲" : "▼", "aria-label": a.dir === "up" ? "Up" : "Down" }),
+    h("div", { class: "alert-body" },
+      h("a", { class: "alert-area", href: `#/metro/${a.id}`, text: isUS ? "United States" : a.name }),
+      h("p", { class: "alert-text", text: a.text })),
+    h("span", { class: "alert-tag", text: ALERT_TAGS[a.kind] || "" }));
+}
+
+function alertsSection() {
+  const A = S.alerts;
+  if (!A || !Array.isArray(A.alerts)) return null;
+  const month = monthLabel(mIdx(A.month));
+  const followed = Math.max(0, (A.watching || 1) - 1);
+  const head = h("div", { class: "section-head" },
+    h("h2", { id: "alerts-h", text: "Market alerts" }),
+    h("p", { text: `What stood out in the ${month} data for the U.S., ${followed} watched metro areas, and the biggest movers among the ${A.mover_pool} largest.` }));
+  if (!A.alerts.length) {
+    return h("section", { "aria-labelledby": "alerts-h" }, head,
+      h("p", { class: "alerts-empty", text: `Nothing unusual in the ${month} data for the watched areas.` }));
+  }
+  const list = h("ul", { class: "alert-list" });
+  let open = false;
+  const toggle = h("button", {
+    class: "btn", type: "button", "aria-expanded": "false",
+    onclick: () => { open = !open; toggle.setAttribute("aria-expanded", String(open)); paint(); },
+  });
+  const paint = () => {
+    list.replaceChildren(...(open ? A.alerts : A.alerts.slice(0, ALERTS_SHOWN)).map(alertRow));
+    toggle.textContent = open ? "Show fewer" : `Show all ${A.alerts.length} alerts`;
+  };
+  paint();
+  return h("section", { "aria-labelledby": "alerts-h" }, head, list,
+    A.alerts.length > ALERTS_SHOWN ? h("div", { class: "more" }, toggle) : null);
+}
+
 function card(m) {
   const L = m.latest;
   const p = m.photo && safeUrl(m.photo.card) ? m.photo : null;
@@ -346,6 +390,7 @@ function renderHome() {
       }),
       us ? tiles(us, ["zhvi", "zori", "yield", "inventory", "days_pending"]) : null,
       us ? h("p", { style: { marginTop: "12px" } }, h("a", { href: `#/metro/${US_ID}`, text: "National trends →" })) : null),
+    alertsSection(),
     h("section", {},
       h("div", { class: "section-head" }, h("h2", { text: "Featured metro areas" })),
       h("div", { class: "card-grid" }, S.meta.featured.map((id) => S.byId.get(id)).filter(Boolean).map(card))),
@@ -572,6 +617,7 @@ async function init() {
     S.metros = metros;
     for (const m of metros) S.byId.set(m.id, m);
     for (const d of meta.datasets) S.datasets[d.key] = d;
+    S.alerts = await getJSON("data/alerts.json").catch(() => null); // optional: older data has none
   } catch (e) {
     app.replaceChildren(h("p", { class: "error", text: `The housing data didn't load (${e.message}). If you just set up the site, run the "Update data and publish site" workflow once from the Actions tab.` }));
     return;
