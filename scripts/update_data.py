@@ -280,6 +280,19 @@ def clean_html(value, limit=90):
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
+# Some Commons files put license boilerplate in the author field. On those, the
+# uploader is the copyright holder, so credit them by name instead.
+BOILERPLATE_CREDIT = re.compile(r"copyright holder of this work|hereby publish", re.I)
+FILE_PREFIX = re.compile(r"^(?:File|Image):[^:]+?\.(?:jpe?g|png|gif|tiff?|webp)\s*:\s*", re.I)
+
+
+def photo_credit(artist_html, uploader):
+    text = FILE_PREFIX.sub("", clean_html(artist_html, 500))
+    if BOILERPLATE_CREDIT.search(text):
+        text = uploader or ""
+    return clean_html(text) or "Unknown author"
+
+
 def card_url(thumb_url, thumb_width):
     if "/thumb/" in thumb_url and thumb_width and thumb_width > CARD_PHOTO_WIDTH:
         return re.sub(r"/\d+px-", "/{}px-".format(CARD_PHOTO_WIDTH), thumb_url, count=1)
@@ -318,7 +331,7 @@ def lookup_photos(metros):
         requested = ["File:" + f for f in batch]
         q = wiki_query({
             "prop": "imageinfo",
-            "iiprop": "url|extmetadata",
+            "iiprop": "url|extmetadata|user",
             "iiurlwidth": str(PHOTO_WIDTH),
             "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl|UsageTerms",
             "titles": "|".join(requested),
@@ -341,7 +354,7 @@ def lookup_photos(metros):
                 "card": card_url(ii["thumburl"], width),
                 "width": width,
                 "height": ii.get("thumbheight"),
-                "credit": clean_html(get("Artist")) or "Unknown author",
+                "credit": photo_credit(get("Artist"), ii.get("user")),
                 "license": license_name,
                 "license_url": clean_html(get("LicenseUrl"), 300) or None,
                 "file_page": ii.get("descriptionurl"),

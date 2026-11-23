@@ -34,7 +34,7 @@
       "card": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Chicago_River_ferry_b.jpg/500px-Chicago_River_ferry_b.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
       "width": 960,
       "height": 679,
-      "credit": "File:Chicago River ferry.jpg : John Picken derivative work: Georgfotoart",
+      "credit": "John Picken derivative work: Georgfotoart",
       "license": "CC BY 2.0",
       "license_url": "https://creativecommons.org/licenses/by/2.0",
       "file_page": "https://commons.wikimedia.org/wiki/File:Chicago_River_ferry_b.jpg",
@@ -5042,7 +5042,7 @@
       "card": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Whitewater_Wisconsin_Downtown_Looking_East.jpg/500px-Whitewater_Wisconsin_Downtown_Looking_East.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
       "width": 960,
       "height": 639,
-      "credit": "I, the copyright holder of this work, hereby publish it under the following license:",
+      "credit": "Royalbroil",
       "license": "CC BY-SA 3.0",
       "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
       "file_page": "https://commons.wikimedia.org/wiki/File:Whitewater_Wisconsin_Downtown_Looking_East.jpg",
@@ -5774,7 +5774,7 @@
       "card": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Main_Street_Commercial_Historic_District_Watertown_Wisconsin.jpg/500px-Main_Street_Commercial_Historic_District_Watertown_Wisconsin.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
       "width": 960,
       "height": 629,
-      "credit": "I, the copyright holder of this work, hereby publish it under the following license:",
+      "credit": "Royalbroil",
       "license": "CC BY-SA 3.0",
       "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
       "file_page": "https://commons.wikimedia.org/wiki/File:Main_Street_Commercial_Historic_District_Watertown_Wisconsin.jpg",
@@ -7901,17 +7901,7 @@
   },
   "394742": {
     "checked": "2026-11-23",
-    "photo": {
-      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Kerrville%2C_tx_city_hall_2015.jpg/960px-Kerrville%2C_tx_city_hall_2015.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-      "card": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Kerrville%2C_tx_city_hall_2015.jpg/500px-Kerrville%2C_tx_city_hall_2015.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-      "width": 960,
-      "height": 640,
-      "credit": "Larry D. Moore",
-      "license": "CC BY 4.0",
-      "license_url": "https://creativecommons.org/licenses/by/4.0",
-      "file_page": "https://commons.wikimedia.org/wiki/File:Kerrville,_tx_city_hall_2015.jpg",
-      "wiki_page": "https://en.wikipedia.org/wiki/Kerrville%2C_Texas"
-    }
+    "photo": null
   },
   "394363": {
     "checked": "2026-11-23",
