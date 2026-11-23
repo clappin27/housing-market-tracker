@@ -24,7 +24,6 @@ permissions:
   contents: write # commit refreshed data
   pages: write # publish the site
   id-token: write # required by deploy-pages
-  issues: write # post monthly market alerts
 
 concurrency:
   group: update-and-publish
@@ -35,6 +34,9 @@ jobs:
     # Pushes you make yourself skip straight to publishing.
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit refreshed data
+      issues: write # post monthly market alerts
     outputs:
       changed: ${{ steps.commit.outputs.changed }}
     steps:
