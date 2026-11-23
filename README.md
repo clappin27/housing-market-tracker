@@ -15,6 +15,9 @@ for every U.S. metro area. It updates itself from Zillow Research's public data.
   the metros you watch. When a new month arrives, the Action also posts the alerts as an
   issue in this repo, and GitHub notifies you about it, by email if your GitHub notification
   settings allow.
+- **Property cards:** list specific homes in [`site/properties.json`](site/properties.json).
+  Each one gets a card with a **See Zestimate on Zillow** button, on the home page and on its
+  metro's page.
 
 Nothing to install: the update script uses only built-in Python, and the site is plain
 HTML, CSS and JavaScript.
@@ -47,6 +50,50 @@ Edit [`config.json`](config.json) and push. The site republishes on every push.
 
 New featured metros take effect on the next data run. Run the workflow by hand to see them
 right away.
+
+## Property cards
+
+Add homes to [`site/properties.json`](site/properties.json) (on GitHub: open the file, click
+the pencil, edit, then **Commit changes**). The site updates a minute or two after you commit.
+Pages may be cached for up to 10 minutes.
+
+```json
+{
+  "title": "Properties",
+  "properties": [
+    {
+      "address": "12 Elm St, Boston, MA 02118",
+      "label": "For sale",
+      "beds": 3,
+      "baths": 2,
+      "sqft": 1650,
+      "note": "Renovated kitchen, close to the T.",
+      "photo": "photos/12-elm-st.jpg",
+      "photo_credit": "Your name"
+    }
+  ]
+}
+```
+
+| Field | What it does |
+|---|---|
+| `address` | Required. Street, city, state and ZIP, separated by commas. |
+| `label` | Optional tag on the photo, e.g. "For sale", "Sold", "Coming soon". |
+| `beds`, `baths`, `sqft` | Optional numbers. |
+| `note` | Optional short description. |
+| `photo` | Optional. A photo you own or have permission to use, uploaded to [`site/photos/`](site/photos), e.g. `photos/12-elm-st.jpg`. Links to other websites aren't accepted. |
+| `photo_credit`, `photo_alt` | Optional photographer credit and a description of the photo for screen readers. |
+| `metro` | Optional. The metro area exactly as the site names it, e.g. `"Boston, MA"`. Without it, the card is matched to the metro named after the address's city, so a Cambridge address needs `"metro": "Boston, MA"`. |
+| `zillow_url` | Optional. The home's own Zillow link. Without it, the button runs a Zillow search for the address. That usually opens the right home, but in a building with several units it can open the wrong one. |
+| `title` | Optional, at the top of the file: the section heading. |
+
+Keep in mind:
+
+- **This site and repo are public.** List only addresses you're comfortable publishing, such as
+  your own listings, not clients' private homes.
+- **Zestimates stay on Zillow.** The cards link to each home's Zillow page, where its Zestimate
+  is shown. Zillow's terms don't allow copying Zestimates or listing photos onto another site.
+  Showing the number directly needs Zillow's Bridge API, which requires Zillow's approval.
 
 ## How alerts are chosen
 
@@ -105,6 +152,8 @@ site/data/series/<id>.json           monthly history for one metro
 site/data/latest.csv                 spreadsheet-friendly latest figures
 site/data/photos.json                photo lookup cache
 site/data/alerts.json                this month's market alerts
+site/properties.json                 homes shown as property cards (you edit this)
+site/photos/                         your own photos for property cards
 ```
 
 GitHub turns off scheduled workflows in public repos after 60 days without activity. The

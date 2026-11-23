@@ -9,6 +9,7 @@ const app = document.getElementById("app");
 const S = {
   meta: null,
   alerts: null,
+  properties: { title: "Properties", list: [] },
   metros: [],
   byId: new Map(),
   datasets: {},
@@ -52,7 +53,7 @@ function h(tag, props = {}, ...kids) {
     else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
     else node.setAttribute(k, v === true ? "" : v);
   }
-  for (const kid of kids.flat()) if (kid != null && kid !== false) node.append(kid instanceof Node ? kid : String(kid));
+  for (const kid of kids.flat(Infinity)) if (kid != null && kid !== false) node.append(kid instanceof Node ? kid : String(kid));
   return node;
 }
 
@@ -226,6 +227,91 @@ function fallbackArt(size) {
   return h("div", { class: "photo-fallback" }, icon("house", size));
 }
 
+// ------------------------------------------------------------------ property cards
+
+// Homes listed in site/properties.json. The site never copies Zillow's numbers or
+// photos: each card links to the home on Zillow, where the Zestimate is shown.
+
+const isZillowUrl = (u) => typeof u === "string" && /^https:\/\/(www\.)?zillow\.com\//.test(u);
+
+function zillowLink(p) {
+  if (isZillowUrl(p.zillow_url)) return p.zillow_url;
+  // Zillow's address search opens the home's page when it recognizes the address.
+  const slug = encodeURIComponent(p.address.replace(/\s+/g, "-")).replace(/%2C/gi, ",");
+  return `https://www.zillow.com/homes/${slug}_rb/`;
+}
+
+// Only your own photos, saved in site/photos/.
+const ownPhoto = (path) =>
+  typeof path === "string" && /^photos\/[\w\-. ]+\.(jpe?g|png|webp|avif|gif)$/i.test(path) ? encodeURI(path) : null;
+
+function propertyMetro(p) {
+  if (typeof p.metro === "string" && p.metro.trim()) {
+    const want = p.metro.trim().toLowerCase();
+    return S.metros.find((m) => m.name.toLowerCase() === want) || null;
+  }
+  // "12 Elm St, Boston, MA 02118" -> the metro named "Boston, MA"
+  const parts = p.address.split(",").map((x) => x.trim());
+  if (parts.length < 3) return null;
+  const city = parts[parts.length - 2].toLowerCase();
+  const state = (parts[parts.length - 1].match(/^[A-Za-z]{2}\b/) || [""])[0].toUpperCase();
+  return S.metros.find((m) => m.type === "metro" && m.state === state && m.name.split(",")[0].trim().toLowerCase() === city) || null;
+}
+
+function loadProperties(doc) {
+  const list = Array.isArray(doc?.properties) ? doc.properties : [];
+  return {
+    title: typeof doc?.title === "string" && doc.title.trim() ? doc.title.trim() : "Properties",
+    list: list
+      .filter((p) => p && typeof p.address === "string" && p.address.trim())
+      .map((p) => ({ ...p, address: p.address.trim().replace(/\s+/g, " ") }))
+      .map((p) => ({ ...p, metroRef: propertyMetro(p) })),
+  };
+}
+
+function propertyCard(p, { showArea }) {
+  const photo = ownPhoto(p.photo);
+  const comma = p.address.indexOf(",");
+  const street = comma > 0 ? p.address.slice(0, comma) : p.address;
+  const locality = comma > 0 ? p.address.slice(comma + 1).trim() : "";
+  const pos = (v) => (typeof v === "number" && isFinite(v) && v > 0 ? v : null);
+  const facts = [
+    pos(p.beds) && `${p.beds} bd`,
+    pos(p.baths) && `${p.baths} ba`,
+    pos(p.sqft) && `${num.format(p.sqft)} sq ft`,
+  ].filter(Boolean).join(" · ");
+  const m = p.metroRef;
+  const zv = m?.latest?.zhvi;
+  return h("article", { class: "card prop-card" },
+    h("div", { class: "card-photo" },
+      photo ? h("img", { src: photo, alt: typeof p.photo_alt === "string" ? p.photo_alt : `Photo of ${street}`, loading: "lazy", decoding: "async" }) : fallbackArt(36),
+      p.label ? h("span", { class: "prop-label", text: String(p.label) }) : null),
+    h("div", { class: "card-body" },
+      h("h3", { class: "card-name", text: street }),
+      locality ? h("span", { class: "card-stats", text: locality }) : null,
+      facts ? h("span", { class: "prop-facts", text: facts }) : null,
+      p.note ? h("p", { class: "prop-note", text: String(p.note) }) : null,
+      showArea && m && zv
+        ? h("a", { class: "prop-area", href: `#/metro/${m.id}` },
+            `${m.name} area: typical home ${fmt("usd", zv[0], "short")}${zv[1] != null ? `, ${signed(zv[1])} in a year` : ""}`)
+        : null,
+      h("div", { class: "prop-actions" },
+        h("a", {
+          class: "btn", href: zillowLink(p), target: "_blank", rel: "noopener",
+          "aria-label": `See the Zestimate for ${p.address} on Zillow (opens in a new tab)`,
+        }, "See Zestimate on Zillow ↗"))),
+    photo && p.photo_credit ? h("p", { class: "photo-credit", text: `Photo: ${p.photo_credit}` }) : null);
+}
+
+function propertiesSection(list, title, showArea) {
+  if (!list.length) return null;
+  return h("section", { "aria-labelledby": "props-h" },
+    h("div", { class: "section-head" },
+      h("h2", { id: "props-h", text: title }),
+      h("p", { text: "Zestimate® home values are Zillow's. Each link opens the home on Zillow." })),
+    h("div", { class: "card-grid" }, list.map((p) => propertyCard(p, { showArea }))));
+}
+
 // ------------------------------------------------------------------ home view
 
 const ALERT_TAGS = {
@@ -391,6 +477,7 @@ function renderHome() {
       us ? tiles(us, ["zhvi", "zori", "yield", "inventory", "days_pending"]) : null,
       us ? h("p", { style: { marginTop: "12px" } }, h("a", { href: `#/metro/${US_ID}`, text: "National trends →" })) : null),
     alertsSection(),
+    propertiesSection(S.properties.list, S.properties.title, true),
     h("section", {},
       h("div", { class: "section-head" }, h("h2", { text: "Featured metro areas" })),
       h("div", { class: "card-grid" }, S.meta.featured.map((id) => S.byId.get(id)).filter(Boolean).map(card))),
@@ -576,6 +663,7 @@ function renderMetro(metro) {
         : null),
     h("div", { class: "filter-row" }, h("div", {}, h("span", { class: "filter-label", text: "Range" }), rangeSeg), compareBox),
     grid,
+    propertiesSection(S.properties.list.filter((x) => x.metroRef?.id === metro.id), `${S.properties.title} in this area`, false),
     notes,
   );
   drawCharts(metro, grid, token);
@@ -618,6 +706,7 @@ async function init() {
     for (const m of metros) S.byId.set(m.id, m);
     for (const d of meta.datasets) S.datasets[d.key] = d;
     S.alerts = await getJSON("data/alerts.json").catch(() => null); // optional: older data has none
+    S.properties = loadProperties(await getJSON("properties.json").catch(() => null));
   } catch (e) {
     app.replaceChildren(h("p", { class: "error", text: `The housing data didn't load (${e.message}). If you just set up the site, run the "Update data and publish site" workflow once from the Actions tab.` }));
     return;
