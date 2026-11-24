@@ -1,5 +1,9 @@
 # Housing Market Tracker
 
+[![Update data and publish site](https://github.com/clappin27/housing-market-tracker/actions/workflows/update-and-publish.yml/badge.svg)](https://github.com/clappin27/housing-market-tracker/actions/workflows/update-and-publish.yml)
+
+**Live site:** https://clappin27.github.io/housing-market-tracker/
+
 A website and data repository with typical home values, rents, listings and days on market
 for every U.S. metro area. It updates itself from Zillow Research's public data.
 
